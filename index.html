@@ -52,7 +52,20 @@ function myFunc(){
     document.getElementById("result").innerHTML = html;
     return;
   }
+  fetch(
+  "https://script.google.com/macros/s/AKfycbxnpLmQzNWWgxMTVv-7YtuWErlcHcEoQX-d1uBhGc78X4sCKTbgJ7a_V6YyWCd3jd9e/exec"
+  + "?TX=" + TX
+  + "&r=" + r
+)
+.then(r => r.json())
+.then(data => {
 
+  var K1 = data.K1;
+
+});
+
+
+  
   // 5. Apps ScriptにTXとrを送ってK1を受け取る
   html += "K1を計算中...";
   document.getElementById("result").innerHTML = html;
