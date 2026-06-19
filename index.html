@@ -70,7 +70,6 @@ function myFunc(){
   html += "K1を計算中...";
   document.getElementById("result").innerHTML = html;
 
-  google.script.run.withSuccessHandler(function(K1){
     // K1が返ってきた後の処理
     var html2 = html.replace("K1を計算中...", "");
     
