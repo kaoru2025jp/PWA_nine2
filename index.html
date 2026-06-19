@@ -1,95 +1,177 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <title>SOS</title>
 </head>
 <body>
+
 <button type="button" onclick="myFunc()">START</button>
+
 <div id="result"></div>
 
 <script>
+
 function myFunc(){
+
+  // 入力
   var B = parseFloat(prompt("B"));
   var S = parseFloat(prompt("S"));
   var T1 = parseFloat(prompt("T1"));
   var T2 = parseFloat(prompt("T2"));
   var r = parseFloat(prompt("r"));
-  var TX = parseFloat(prompt("TX = 時間価値")); // App Scriptに送る用
+  var TX = parseFloat(prompt("TX = 時間価値"));
 
-  var T3 = Math.log(T2/T1);
-  var T4 = Math.log(T1/T2);
-  var S1 = S*(1+T3);
-  var S2 = S*(1+T4);
-  var O1 = (B-S)/T1;
-  var O2 = (B-S)/T2;
-  var O3 = (S1-S2)/T2;
-  var O4 = (S1-S2)/T1;
-  
+  // 入力チェック
+  if(
+    isNaN(B) || isNaN(S) ||
+    isNaN(T1) || isNaN(T2) ||
+    isNaN(r) || isNaN(TX)
+  ){
+    alert("数値を入力してください");
+    return;
+  }
+
+  if(T1 <= 0 || T2 <= 0){
+    alert("T1,T2は0より大きい値を入力してください");
+    return;
+  }
+
+  // 計算
+  var T3 = Math.log(T2 / T1);
+  var T4 = Math.log(T1 / T2);
+
+  var S1 = S * (1 + T3);
+  var S2 = S * (1 + T4);
+
+  var O1 = (B - S) / T1;
+  var O2 = (B - S) / T2;
+
+  var O3 = (S1 - S2) / T2;
+  var O4 = (S1 - S2) / T1;
+
   var denom = S1 - S2;
-  var P1 = denom === 0 ? "計算不可" : (O3-0.05*S2)/denom;
-  var P2 = denom === 0 ? "計算不可" : (O4-0.05*S2)/denom;
 
+  var P1 =
+    Math.abs(denom) < 1e-10
+      ? "計算不可"
+      : (O3 - 0.05 * S2) / denom;
+
+  var P2 =
+    Math.abs(denom) < 1e-10
+      ? "計算不可"
+      : (O4 - 0.05 * S2) / denom;
+
+  // 結果表
   var html = "<table border='1' cellpadding='6'>";
   html += "<tr><th>項目</th><th>値</th></tr>";
+
   html += "<tr><td>T3 = ln(T2/T1)</td><td>" + T3 + "</td></tr>";
   html += "<tr><td>T4 = ln(T1/T2)</td><td>" + T4 + "</td></tr>";
+
   html += "<tr><td>S1</td><td>" + S1 + "</td></tr>";
   html += "<tr><td>S2</td><td>" + S2 + "</td></tr>";
+
   html += "<tr><td>O1</td><td>" + O1 + "</td></tr>";
   html += "<tr><td>O2</td><td>" + O2 + "</td></tr>";
+
   html += "<tr><td>O3</td><td>" + O3 + "</td></tr>";
   html += "<tr><td>O4</td><td>" + O4 + "</td></tr>";
+
   html += "<tr><td>P1</td><td>" + P1 + "</td></tr>";
   html += "<tr><td>P2</td><td>" + P2 + "</td></tr>";
+
   html += "</table><br>";
 
-  // 4. パスワード処理
+  // パスワード確認
   var pass = prompt("パスワードを入力してください");
-  var passOk = /^0\d{2}$/.test(pass);
 
-  if(!passOk){
-    html += "パスワードが間違っています";
+  if(!/^0\d{2}$/.test(pass)){
+    html += "<b>パスワードが間違っています</b>";
     document.getElementById("result").innerHTML = html;
     return;
   }
-  fetch(
-  "https://script.google.com/macros/s/AKfycbxnpLmQzNWWgxMTVv-7YtuWErlcHcEoQX-d1uBhGc78X4sCKTbgJ7a_V6YyWCd3jd9e/exec"
-  + "?TX=" + TX
-  + "&r=" + r
-)
-.then(r => r.json())
-.then(data => {
 
-  var K1 = data.K1;
-
-});
-
-
-  
-  // 5. Apps ScriptにTXとrを送ってK1を受け取る
+  // 表示
   html += "K1を計算中...";
   document.getElementById("result").innerHTML = html;
 
-    // K1が返ってきた後の処理
-    var html2 = html.replace("K1を計算中...", "");
-    
-    if(K1 <= 0 || K1 > 1){
-      html2 += "時間価値: K1が0より大きく1以下でないため計算不可";
-    } else if(r <= 0.001){
-      html2 += "時間価値: rが0か小さすぎます";
-    } else {
-      var timeValue = -Math.log(K1) / r;
-      html2 += "<table border='1' cellpadding='6'>";
-      html2 += "<tr><th>認証結果</th><th>K1</th><th>時間価値</th></tr>";
-      html2 += "<tr><td>OK</td><td>" + K1.toFixed(6) + "</td><td>" + timeValue.toFixed(4) + "</td></tr>";
-      html2 += "</table>";
+  // Apps Script呼び出し
+  fetch(
+    "https://script.google.com/macros/s/AKfycbxnpLmQzNWWgxMTVv-7YtuWErlcHcEoQX-d1uBhGc78X4sCKTbgJ7a_V6YyWCd3jd9e/exec"
+    + "?TX=" + encodeURIComponent(TX)
+    + "&r=" + encodeURIComponent(r)
+  )
+
+  .then(response => {
+
+    if(!response.ok){
+      throw new Error("HTTP Error : " + response.status);
     }
+
+    return response.json();
+
+  })
+
+  .then(data => {
+
+    var K1 = Number(data.K1);
+
+    var html2 = html.replace("K1を計算中...", "");
+
+    if(isNaN(K1)){
+
+      html2 += "K1が取得できませんでした";
+
+    }
+    else if(K1 <= 0 || K1 > 1){
+
+      html2 += "時間価値: K1が0より大きく1以下でないため計算不可";
+
+    }
+    else if(r <= 0.001){
+
+      html2 += "時間価値: rが小さすぎます";
+
+    }
+    else{
+
+      var timeValue = -Math.log(K1) / r;
+
+      html2 += "<table border='1' cellpadding='6'>";
+      html2 += "<tr>";
+      html2 += "<th>認証結果</th>";
+      html2 += "<th>K1</th>";
+      html2 += "<th>時間価値</th>";
+      html2 += "</tr>";
+
+      html2 += "<tr>";
+      html2 += "<td>OK</td>";
+      html2 += "<td>" + K1.toFixed(6) + "</td>";
+      html2 += "<td>" + timeValue.toFixed(4) + "</td>";
+      html2 += "</tr>";
+
+      html2 += "</table>";
+
+    }
+
     document.getElementById("result").innerHTML = html2;
-    
-  }).withFailureHandler(function(err){
-    document.getElementById("result").innerHTML = html.replace("K1を計算中...", "K1取得エラー: " + err.message);
-  }).calcK1(TX, r);
+
+  })
+
+  .catch(error => {
+
+    document.getElementById("result").innerHTML =
+      html.replace(
+        "K1を計算中...",
+        "K1取得エラー : " + error.message
+      );
+
+  });
+
 }
+
 </script>
+
 </body>
 </html>
