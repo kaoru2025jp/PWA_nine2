@@ -2,19 +2,26 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>SOS</title>
+<title>SOS縦表示</title>
+<style>
+  body { font-family: sans-serif; padding: 16px; }
+  .row { margin: 6px 0; }
+  .label { font-weight: bold; display: inline-block; width: 160px; }
+  .section { margin-top: 16px; padding-top: 8px; border-top: 1px solid #ccc; }
+  .error { color: red; font-weight: bold; }
+  input[type="number"] { padding: 4px; width: 120px; }
+  button { padding: 4px 12px; margin-left: 8px; }
+</style>
 </head>
 <body>
-
 <button type="button" onclick="myFunc()">START</button>
-
 <div id="result"></div>
 
 <script>
+// グローバル変数に保持
+var G = {};
 
 function myFunc(){
-
-  // 入力
   var B = parseFloat(prompt("B"));
   var S = parseFloat(prompt("S"));
   var T1 = parseFloat(prompt("T1"));
@@ -22,156 +29,116 @@ function myFunc(){
   var r = parseFloat(prompt("r"));
   var TX = parseFloat(prompt("TX = 時間価値"));
 
-  // 入力チェック
-  if(
-    isNaN(B) || isNaN(S) ||
-    isNaN(T1) || isNaN(T2) ||
-    isNaN(r) || isNaN(TX)
-  ){
+  if([B,S,T1,T2,r,TX].some(isNaN)){
     alert("数値を入力してください");
     return;
   }
-
   if(T1 <= 0 || T2 <= 0){
     alert("T1,T2は0より大きい値を入力してください");
     return;
   }
 
-  // 計算
-  var T3 = Math.log(T2 / T1);
-  var T4 = Math.log(T1 / T2);
+  // K使わない計算
+  G.T3 = Math.log(T2 / T1);
+  G.T4 = Math.log(T1 / T2);
+  G.S1 = S * (1 + G.T3);
+  G.S2 = S * (1 + G.T4);
+  G.O1 = (B - S) / T1;
+  G.O2 = (B - S) / T2;
+  G.O3 = (G.S1 - G.S2) / T2;
+  G.O4 = (G.S1 - G.S2) / T1;
 
-  var S1 = S * (1 + T3);
-  var S2 = S * (1 + T4);
+  var html = '<div class="section">';
+  html += '<div class="row"><span class="label">T3 = ln(T2/T1)</span>' + G.T3 + '</div>';
+  html += '<div class="row"><span class="label">T4 = ln(T1/T2)</span>' + G.T4 + '</div>';
+  html += '<div class="row"><span class="label">S1</span>' + G.S1 + '</div>';
+  html += '<div class="row"><span class="label">S2</span>' + G.S2 + '</div>';
+  html += '<div class="row"><span class="label">O1</span>' + G.O1 + '</div>';
+  html += '<div class="row"><span class="label">O2</span>' + G.O2 + '</div>';
+  html += '<div class="row"><span class="label">O3</span>' + G.O3 + '</div>';
+  html += '<div class="row"><span class="label">O4</span>' + G.O4 + '</div>';
+  html += '</div>';
 
-  var O1 = (B - S) / T1;
-  var O2 = (B - S) / T2;
-
-  var O3 = (S1 - S2) / T2;
-  var O4 = (S1 - S2) / T1;
-
-  var denom = S1 - S2;
-
-  var P1 =
-    Math.abs(denom) < 1e-10
-      ? "計算不可"
-      : (O3 - 0.05 * S2) / denom;
-
-  var P2 =
-    Math.abs(denom) < 1e-10
-      ? "計算不可"
-      : (O4 - 0.05 * S2) / denom;
-
-  // 結果表
-  var html = "<table border='1' cellpadding='6'>";
-  html += "<tr><th>項目</th><th>値</th></tr>";
-
-  html += "<tr><td>T3 = ln(T2/T1)</td><td>" + T3 + "</td></tr>";
-  html += "<tr><td>T4 = ln(T1/T2)</td><td>" + T4 + "</td></tr>";
-
-  html += "<tr><td>S1</td><td>" + S1 + "</td></tr>";
-  html += "<tr><td>S2</td><td>" + S2 + "</td></tr>";
-
-  html += "<tr><td>O1</td><td>" + O1 + "</td></tr>";
-  html += "<tr><td>O2</td><td>" + O2 + "</td></tr>";
-
-  html += "<tr><td>O3</td><td>" + O3 + "</td></tr>";
-  html += "<tr><td>O4</td><td>" + O4 + "</td></tr>";
-
-  html += "<tr><td>P1</td><td>" + P1 + "</td></tr>";
-  html += "<tr><td>P2</td><td>" + P2 + "</td></tr>";
-
-  html += "</table><br>";
-
-  // パスワード確認
   var pass = prompt("パスワードを入力してください");
-
   if(!/^0\d{2}$/.test(pass)){
-    html += "<b>パスワードが間違っています</b>";
+    html += '<div class="error">パスワードが間違っています</div>';
     document.getElementById("result").innerHTML = html;
     return;
   }
 
-  // 表示
-  html += "K1を計算中...";
+  html += '<div class="section" id="k1-area">K1を計算中...</div>';
   document.getElementById("result").innerHTML = html;
 
-  // Apps Script呼び出し
   fetch(
     "https://script.google.com/macros/s/AKfycbxnpLmQzNWWgxMTVv-7YtuWErlcHcEoQX-d1uBhGc78X4sCKTbgJ7a_V6YyWCd3jd9e/exec"
     + "?TX=" + encodeURIComponent(TX)
     + "&r=" + encodeURIComponent(r)
   )
-
   .then(response => {
-
-    if(!response.ok){
-      throw new Error("HTTP Error : " + response.status);
-    }
-
+    if(!response.ok) throw new Error("HTTP Error : " + response.status);
     return response.json();
-
   })
-
   .then(data => {
-
     var K1 = Number(data.K1);
-
-    var html2 = html.replace("K1を計算中...", "");
+    var area = document.getElementById("k1-area");
 
     if(isNaN(K1)){
-
-      html2 += "K1が取得できませんでした";
-
+      area.innerHTML = '<div class="error">K1が取得できませんでした</div>';
+      return;
     }
-    else if(K1 <= 0 || K1 > 1){
-
-      html2 += "時間価値: K1が0より大きく1以下でないため計算不可";
-
+    if(K1 <= 0 || K1 > 1){
+      area.innerHTML = '<div class="error">時間価値: K1が0より大きく1以下でないため計算不可</div>';
+      return;
     }
-    else if(r <= 0.001){
-
-      html2 += "時間価値: rが小さすぎます";
-
-    }
-    else{
-
-      var timeValue = -Math.log(K1) / r;
-
-      html2 += "<table border='1' cellpadding='6'>";
-      html2 += "<tr>";
-      html2 += "<th>認証結果</th>";
-      html2 += "<th>K1</th>";
-      html2 += "<th>時間価値</th>";
-      html2 += "</tr>";
-
-      html2 += "<tr>";
-      html2 += "<td>OK</td>";
-      html2 += "<td>" + K1.toFixed(6) + "</td>";
-      html2 += "<td>" + timeValue.toFixed(4) + "</td>";
-      html2 += "</tr>";
-
-      html2 += "</table>";
-
+    if(r <= 0.001){
+      area.innerHTML = '<div class="error">時間価値: rが小さすぎます</div>';
+      return;
     }
 
-    document.getElementById("result").innerHTML = html2;
-
+    G.K1 = K1;
+    G.timeValue = -Math.log(K1) / r;
+    G.r = r;
+    
+    // ① K1を縦表示 + K入力欄を同時に出す
+    area.innerHTML = 
+      '<div class="row"><span class="label">認証結果</span>OK</div>' +
+      '<div class="row"><span class="label">K1</span>' + K1.toFixed(6) + '</div>' +
+      '<div class="row"><span class="label">時間価値</span>' + G.timeValue.toFixed(4) + '</div>' +
+      '<div class="row" style="margin-top:12px;">' +
+      '<span class="label">Kを入力</span>' +
+      '<input type="number" id="k-input" step="any">' +
+      '<button type="button" onclick="calcP()">P計算</button>' +
+      '</div>' +
+      '<div id="p-area"></div>';
   })
-
   .catch(error => {
-
-    document.getElementById("result").innerHTML =
-      html.replace(
-        "K1を計算中...",
-        "K1取得エラー : " + error.message
-      );
-
+    document.getElementById("k1-area").innerHTML = 
+      '<div class="error">K1取得エラー : ' + error.message + '</div>';
   });
-
 }
 
-</script>
+// K入力後にP計算する関数
+function calcP(){
+  var K = parseFloat(document.getElementById("k-input").value);
+  var pArea = document.getElementById("p-area");
 
+  if(isNaN(K)){
+    pArea.innerHTML = '<div class="error">Kを入力してください</div>';
+    return;
+  }
+
+  var P = G.S1 - G.S2 * K;
+  var P1 = Math.abs(P) < 1e-10 ? "計算不可" : (G.O3 - 0.05 * G.S2) / P;
+  var P2 = Math.abs(P) < 1e-10 ? "計算不可" : (G.O4 - 0.05 * G.S2) / P;
+
+  pArea.innerHTML = 
+    '<div class="section">' +
+    '<div class="row"><span class="label">K</span>' + K + '</div>' +
+    '<div class="row"><span class="label">P = S1 - S2*K</span>' + P + '</div>' +
+    '<div class="row"><span class="label">P1</span>' + P1 + '</div>' +
+    '<div class="row"><span class="label">P2</span>' + P2 + '</div>' +
+    '</div>';
+}
+</script>
 </body>
 </html>
