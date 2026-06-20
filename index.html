@@ -3,15 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SOS縦表示</title>
+<title>SOS縦表示+グラフ</title>
 <style>
   body { font-family: sans-serif; padding: 16px; }
-  .row { margin: 6px 0; }
-  .label { font-weight: bold; display: inline-block; width: 160px; }
-  .section { margin-top: 16px; padding-top: 8px; border-top: 1px solid #ccc; }
-  .error { color: red; font-weight: bold; }
+ .row { margin: 6px 0; }
+ .label { font-weight: bold; display: inline-block; width: 160px; }
+ .section { margin-top: 16px; padding-top: 8px; border-top: 1px solid #ccc; }
+ .error { color: red; font-weight: bold; }
   input[type="number"] { padding: 4px; width: 120px; }
   button { padding: 4px 12px; margin-left: 8px; }
+  canvas { border: 1px solid #999; margin-top: 12px; background: #fafafa; display: block; }
 </style>
 </head>
 <body>
@@ -19,7 +20,6 @@
 <div id="result"></div>
 
 <script>
-// グローバル変数に保持
 var G = {};
 
 function myFunc(){
@@ -39,7 +39,6 @@ function myFunc(){
     return;
   }
 
-  // K使わない計算
   G.T3 = Math.log(T2 / T1);
   G.T4 = Math.log(T1 / T2);
   G.S1 = S * (1 + G.T3);
@@ -75,11 +74,11 @@ function myFunc(){
     + "?TX=" + encodeURIComponent(TX)
     + "&r=" + encodeURIComponent(r)
   )
-  .then(response => {
+ .then(response => {
     if(!response.ok) throw new Error("HTTP Error : " + response.status);
     return response.json();
   })
-  .then(data => {
+ .then(data => {
     var K1 = Number(data.K1);
     var area = document.getElementById("k1-area");
 
@@ -99,9 +98,8 @@ function myFunc(){
     G.K1 = K1;
     G.timeValue = -Math.log(K1) / r;
     G.r = r;
-    
-    // ① K1を縦表示 + K入力欄を同時に出す
-    area.innerHTML = 
+
+    area.innerHTML =
       '<div class="row"><span class="label">認証結果</span>OK</div>' +
       '<div class="row"><span class="label">K1</span>' + K1.toFixed(6) + '</div>' +
       '<div class="row"><span class="label">時間価値</span>' + G.timeValue.toFixed(4) + '</div>' +
@@ -112,13 +110,12 @@ function myFunc(){
       '</div>' +
       '<div id="p-area"></div>';
   })
-  .catch(error => {
-    document.getElementById("k1-area").innerHTML = 
+ .catch(error => {
+    document.getElementById("k1-area").innerHTML =
       '<div class="error">K1取得エラー : ' + error.message + '</div>';
   });
 }
 
-// K入力後にP計算する関数
 function calcP(){
   var K = parseFloat(document.getElementById("k-input").value);
   var pArea = document.getElementById("p-area");
@@ -129,16 +126,83 @@ function calcP(){
   }
 
   var P = G.S1 - G.S2 * K;
-  var P1 = Math.abs(P) < 1e-10 ? "計算不可" : (G.O3 - 0.05 * G.S2) / P;
-  var P2 = Math.abs(P) < 1e-10 ? "計算不可" : (G.O4 - 0.05 * G.S2) / P;
+  var P1 = Math.abs(P) < 1e-10? "計算不可" : (G.O3 - 0.05 * G.S2) / P;
+  var P2 = Math.abs(P) < 1e-10? "計算不可" : (G.O4 - 0.05 * G.S2) / P;
 
-  pArea.innerHTML = 
+  pArea.innerHTML =
     '<div class="section">' +
     '<div class="row"><span class="label">K</span>' + K + '</div>' +
     '<div class="row"><span class="label">P = S1 - S2*K</span>' + P + '</div>' +
     '<div class="row"><span class="label">P1</span>' + P1 + '</div>' +
     '<div class="row"><span class="label">P2</span>' + P2 + '</div>' +
+    '<canvas id="graph" width="380" height="280"></canvas>' +
+    '<div style="margin-top:6px;font-size:12px;">赤: (0,O1)→(O3,0)　青: (0,O2)→(O4,0)</div>' +
     '</div>';
+
+  drawGraph();
+}
+
+function drawGraph(){
+  var canvas = document.getElementById("graph");
+  if(!canvas) return;
+  var ctx = canvas.getContext("2d");
+  var w = canvas.width, h = canvas.height;
+  var pad = 35;
+
+  var xMax = Math.max(Math.abs(G.O3), Math.abs(G.O4), 1);
+  var yMax = Math.max(Math.abs(G.O1), Math.abs(G.O2), 1);
+  var scaleX = (w - pad*2) / xMax;
+  var scaleY = (h - pad*2) / yMax;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // 軸
+  ctx.strokeStyle = "#666";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, h - pad);
+  ctx.lineTo(w - pad, h - pad);
+  ctx.moveTo(pad, h - pad);
+  ctx.lineTo(pad, pad);
+  ctx.stroke();
+
+  ctx.fillStyle = "#333";
+  ctx.font = "12px sans-serif";
+  ctx.fillText("0", pad-8, h-pad+14);
+  ctx.fillText("X", w-pad+5, h-pad+4);
+  ctx.fillText("Y", pad-14, pad-4);
+
+  function toCanvas(x, y){
+    return [pad + x*scaleX, h - pad - y*scaleY];
+  }
+
+  // 赤線 (0,O1) -> (O3,0)
+  var p1s = toCanvas(0, G.O1);
+  var p1e = toCanvas(G.O3, 0);
+  ctx.strokeStyle = "red";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(p1s[0], p1s[1]);
+  ctx.lineTo(p1e[0], p1e[1]);
+  ctx.stroke();
+
+  // 青線 (0,O2) -> (O4,0)
+  var p2s = toCanvas(0, G.O2);
+  var p2e = toCanvas(G.O4, 0);
+  ctx.strokeStyle = "blue";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(p2s[0], p2s[1]);
+  ctx.lineTo(p2e[0], p2e[1]);
+  ctx.stroke();
+
+  // 交点マーク
+  ctx.fillStyle = "red";
+  ctx.beginPath(); ctx.arc(p1s[0], p1s[1], 3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(p1e[0], p1e[1], 3, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "blue";
+  ctx.beginPath(); ctx.arc(p2s[0], p2s[1], 3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(p2e[0], p2e[1], 3, 0, Math.PI*2); ctx.fill();
 }
 </script>
 </body>
